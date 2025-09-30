@@ -1,0 +1,14 @@
+../Core/Src/main.c:85:5:main	6
+../Core/Src/main.c:174:6:SystemClock_Config	3
+../Core/Src/main.c:219:6:PeriphCommonClock_Config	2
+../Core/Src/main.c:240:13:MX_I2C1_Init	2
+../Core/Src/main.c:274:13:MX_I2S2_Init	2
+../Core/Src/main.c:308:13:MX_I2S3_Init	2
+../Core/Src/main.c:342:13:MX_SPI1_Init	2
+../Core/Src/main.c:380:13:MX_USART1_UART_Init	2
+../Core/Src/main.c:414:13:MX_GPIO_Init	1
+../Core/Src/main.c:493:6:parse_gps_data	6
+../Core/Src/main.c:519:9:nmea_checksum_valid	4
+../Core/Src/main.c:534:6:process_nmea_sentence	6
+../Core/Src/main.c:572:8:nmea_to_decimal	3
+../Core/Src/main.c:587:6:Error_Handler	1
