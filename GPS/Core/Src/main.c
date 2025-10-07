@@ -18,18 +18,17 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "usb_host.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include "usbd_cdc_if.h"
-#include <stdio.h>
-#include <string.h>
+#include "ILI9341_STM32_Driver.h"
+#include "ILI9341_GFX.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+/* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
@@ -42,35 +41,68 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
-
-I2S_HandleTypeDef hi2s2;
-I2S_HandleTypeDef hi2s3;
-
 SPI_HandleTypeDef hspi1;
-
-UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_spi1_tx;
 
 /* USER CODE BEGIN PV */
-volatile buffer_t buffer;
-gps_position_t gps_last_position;
-volatile uint8_t nmea_data_ready = 0;
+const char* gps_data[] = {
+    "N 49°49.0609', E 024°01.3547', UTC: 07:58:25",
+    "N 49°49.0596', E 024°01.3593', UTC: 07:58:26",
+    "N 49°49.0514', E 024°01.3757', UTC: 07:58:27",
+    "N 49°49.0428', E 024°01.3930', UTC: 07:58:28",
+    "N 49°49.0412', E 024°01.4053', UTC: 07:58:30",
+    "N 49°49.0368', E 024°01.4182', UTC: 07:58:31",
+    "N 49°49.0366', E 024°01.4185', UTC: 07:58:32",
+    "N 49°49.0366', E 024°01.4173', UTC: 07:58:33",
+    "N 49°49.0371', E 024°01.4104', UTC: 07:58:36",
+    "N 49°49.0357', E 024°01.4070', UTC: 07:58:38",
+    "N 49°49.0357', E 024°01.4002', UTC: 07:58:41",
+    "N 49°49.0353', E 024°01.3986', UTC: 07:58:42",
+    "N 49°49.0339', E 024°01.4035', UTC: 07:58:45",
+    "N 49°49.0317', E 024°01.3996', UTC: 07:58:47",
+    "N 49°49.0303', E 024°01.4007', UTC: 07:58:48",
+    "N 49°49.0289', E 024°01.3998', UTC: 07:58:49",
+    "N 49°49.0292', E 024°01.4006', UTC: 07:58:50",
+    "N 49°49.0293', E 024°01.4001', UTC: 07:58:51",
+    "N 49°49.0292', E 024°01.4015', UTC: 07:58:52",
+    "N 49°49.0293', E 024°01.4015', UTC: 07:58:53",
+    "N 49°49.0283', E 024°01.4056', UTC: 07:58:56",
+    "N 49°49.0281', E 024°01.4089', UTC: 07:58:57",
+    "N 49°49.0276', E 024°01.4075', UTC: 07:58:58",
+    "N 49°49.0266', E 024°01.4056', UTC: 07:58:59",
+    "N 49°49.0265', E 024°01.4033', UTC: 07:59:00",
+    "N 49°49.0269', E 024°01.4010', UTC: 07:59:01",
+    "N 49°49.0269', E 024°01.3923', UTC: 07:59:03",
+    "N 49°49.0270', E 024°01.3924', UTC: 07:59:05",
+    "N 49°49.0267', E 024°01.3927', UTC: 07:59:06",
+    "N 49°49.0260', E 024°01.3939', UTC: 07:59:07",
+    "N 49°49.0261', E 024°01.3912', UTC: 07:59:09",
+    "N 49°49.0285', E 024°01.3867', UTC: 07:59:11",
+    "N 49°49.0313', E 024°01.3936', UTC: 07:59:17",
+    "N 49°49.0315', E 024°01.3951', UTC: 07:59:18",
+    "N 49°49.0318', E 024°01.3931', UTC: 07:59:20",
+    "N 49°49.0334', E 024°01.3799', UTC: 07:59:23",
+    "N 49°49.0328', E 024°01.3832', UTC: 07:59:26",
+    "N 49°49.0314', E 024°01.3868', UTC: 07:59:27",
+    "N 49°49.0309', E 024°01.3867', UTC: 07:59:28",
+    "N 49°49.0302', E 024°01.3856', UTC: 07:59:29",
+    "N 49°49.0300', E 024°01.3824', UTC: 07:59:31",
+    "N 49°49.0284', E 024°01.3832', UTC: 07:59:33",
+    "N 49°49.0281', E 024°01.3850', UTC: 07:59:35",
+    "N 49°49.0292', E 024°01.3953', UTC: 07:59:37",
+    "N 49°49.0288', E 024°01.4055', UTC: 07:59:38",
+    "N 49°49.0282', E 024°01.4051', UTC: 07:59:39"
+};
+const int gps_data_count = sizeof(gps_data) / sizeof(gps_data[0]);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void PeriphCommonClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_I2S2_Init(void);
-static void MX_I2S3_Init(void);
+static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_USART1_UART_Init(void);
-void MX_USB_HOST_Process(void);
-
 /* USER CODE BEGIN PFP */
-void process_nmea_sentence(const char* line);
-double nmea_to_decimal(double nmea, char hemi);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -101,68 +133,69 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
-  /* Configure the peripherals common clocks */
-  PeriphCommonClock_Config();
-
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_I2C1_Init();
-  MX_I2S2_Init();
-  MX_I2S3_Init();
+  MX_DMA_Init();
   MX_SPI1_Init();
-  MX_USB_HOST_Init();
-  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t rx_byte;
-  HAL_UART_Receive_IT(&huart1, &rx_byte, 1);
-  for (int i=0; i<3; i++)
-  {
-	  HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);   // Turn Orange LED ON
-	  HAL_Delay(100);
-	  HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET); // Turn Orange LED OFF
-	  HAL_Delay(100);
-  }
+  Init();
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+   // Set orientation
+   SetRotation(SCREEN_HORIZONTAL_1);
+
+   // Clear the screen at the beginning
+   FillScreen(WHITE);
+
+   DrawText("Device ID:", FONT2, 10, 10, BLACK, WHITE);
+   DrawText("Coordinates:", FONT2, 10, 40, BLACK, WHITE);
+   DrawText("Time (UTC):", FONT2, 10, 70, BLACK, WHITE);
+
+   uint32_t device_id_word0 = HAL_GetUIDw0();
+   char id_str[20];
+   sprintf(id_str, "0x%lX", device_id_word0);
+   DrawText(id_str, FONT2, 110, 10, BLUE, WHITE);
+
+   int gps_index = 0;
+   char coords_buffer[45];
+   char time_buffer[20];
   while (1)
   {
+	  const char* full_gps_string = gps_data[gps_index];
+	  const char* separator = ", UTC: ";
+	  const char* time_ptr = strstr(full_gps_string, separator);
 
+	  if (time_ptr) {
+		  int coords_len = time_ptr - full_gps_string;
+		  sprintf(coords_buffer, "%.*s ", coords_len, full_gps_string);
+
+		  const char* time_start = time_ptr + strlen(separator);
+		  sprintf(time_buffer, "%s ", time_start);
+	  } else {
+		  sprintf(coords_buffer, "%s ", full_gps_string);
+		  sprintf(time_buffer, "N/A ");
+	  }
+
+	  DrawText(coords_buffer, FONT2, 10, 55, RED, WHITE);
+	  DrawText(time_buffer, FONT2, 10, 85, RED, WHITE);
+
+	  // Move to the next GPS data entry
+	  gps_index = (gps_index + 1) % gps_data_count;
+
+	  // Toggle the LED and delay
+	  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
+	  HAL_Delay(1000);
     /* USER CODE END WHILE */
-    MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
-    if (nmea_data_ready == 1)
-        {
-          char nmea_sentence[GPS_BUF_SIZE];
-          uint16_t i = 0;
-
-          __disable_irq();
-
-          while (buffer.tail != buffer.head && i < (GPS_BUF_SIZE - 1))
-          {
-            nmea_sentence[i] = buffer.buffer[buffer.tail];
-            buffer.tail = (buffer.tail + 1) % GPS_BUF_SIZE;
-            i++;
-          }
-
-          nmea_data_ready = 0;
-
-          __enable_irq();
-
-          nmea_sentence[i] = '\0';
-
-          if (i > 0)
-          {
-        	  HAL_UART_Transmit(&huart1, (uint8_t*)nmea_sentence, i, 100);
-//            parse_nmea_sentence(nmea_sentence);
-          }
-        }
   }
   /* USER CODE END 3 */
 }
@@ -184,14 +217,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 15;
-  RCC_OscInitStruct.PLL.PLLN = 144;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
-  RCC_OscInitStruct.PLL.PLLQ = 5;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -201,137 +230,15 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief Peripherals Common Clock Configuration
-  * @retval None
-  */
-void PeriphCommonClock_Config(void)
-{
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-
-  /** Initializes the peripherals clock
-  */
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_I2S;
-  PeriphClkInitStruct.PLLI2S.PLLI2SN = 192;
-  PeriphClkInitStruct.PLLI2S.PLLI2SM = 16;
-  PeriphClkInitStruct.PLLI2S.PLLI2SR = 2;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
-  * @brief I2S2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2S2_Init(void)
-{
-
-  /* USER CODE BEGIN I2S2_Init 0 */
-
-  /* USER CODE END I2S2_Init 0 */
-
-  /* USER CODE BEGIN I2S2_Init 1 */
-
-  /* USER CODE END I2S2_Init 1 */
-  hi2s2.Instance = SPI2;
-  hi2s2.Init.Mode = I2S_MODE_MASTER_TX;
-  hi2s2.Init.Standard = I2S_STANDARD_PHILIPS;
-  hi2s2.Init.DataFormat = I2S_DATAFORMAT_16B;
-  hi2s2.Init.MCLKOutput = I2S_MCLKOUTPUT_DISABLE;
-  hi2s2.Init.AudioFreq = I2S_AUDIOFREQ_96K;
-  hi2s2.Init.CPOL = I2S_CPOL_LOW;
-  hi2s2.Init.ClockSource = I2S_CLOCK_PLL;
-  hi2s2.Init.FullDuplexMode = I2S_FULLDUPLEXMODE_ENABLE;
-  if (HAL_I2S_Init(&hi2s2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2S2_Init 2 */
-
-  /* USER CODE END I2S2_Init 2 */
-
-}
-
-/**
-  * @brief I2S3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2S3_Init(void)
-{
-
-  /* USER CODE BEGIN I2S3_Init 0 */
-
-  /* USER CODE END I2S3_Init 0 */
-
-  /* USER CODE BEGIN I2S3_Init 1 */
-
-  /* USER CODE END I2S3_Init 1 */
-  hi2s3.Instance = SPI3;
-  hi2s3.Init.Mode = I2S_MODE_MASTER_TX;
-  hi2s3.Init.Standard = I2S_STANDARD_PHILIPS;
-  hi2s3.Init.DataFormat = I2S_DATAFORMAT_16B;
-  hi2s3.Init.MCLKOutput = I2S_MCLKOUTPUT_ENABLE;
-  hi2s3.Init.AudioFreq = I2S_AUDIOFREQ_96K;
-  hi2s3.Init.CPOL = I2S_CPOL_LOW;
-  hi2s3.Init.ClockSource = I2S_CLOCK_PLL;
-  hi2s3.Init.FullDuplexMode = I2S_FULLDUPLEXMODE_DISABLE;
-  if (HAL_I2S_Init(&hi2s3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2S3_Init 2 */
-
-  /* USER CODE END I2S3_Init 2 */
-
 }
 
 /**
@@ -373,36 +280,18 @@ static void MX_SPI1_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
+  * Enable DMA controller clock
   */
-static void MX_USART1_UART_Init(void)
+static void MX_DMA_Init(void)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
 
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-  HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(USART1_IRQn);
-  /* USER CODE END USART1_Init 2 */
+  /* DMA interrupt init */
+  /* DMA2_Stream2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream2_IRQn);
 
 }
 
@@ -419,69 +308,30 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(CS_I2C_SPI_GPIO_Port, CS_I2C_SPI_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(green_GPIO_Port, green_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, LD4_Pin|LD3_Pin|LD5_Pin|LD6_Pin
-                          |Audio_RST_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : DATA_Ready_Pin */
-  GPIO_InitStruct.Pin = DATA_Ready_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(DATA_Ready_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : CS_I2C_SPI_Pin */
-  GPIO_InitStruct.Pin = CS_I2C_SPI_Pin;
+  /*Configure GPIO pin : green_Pin */
+  GPIO_InitStruct.Pin = green_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(CS_I2C_SPI_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(green_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : INT1_Pin INT2_Pin MEMS_INT2_Pin */
-  GPIO_InitStruct.Pin = INT1_Pin|INT2_Pin|MEMS_INT2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : OTG_FS_PowerSwitchOn_Pin */
-  GPIO_InitStruct.Pin = OTG_FS_PowerSwitchOn_Pin;
+  /*Configure GPIO pins : PB6 PB7 PB8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(OTG_FS_PowerSwitchOn_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PA0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
-  GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : LD4_Pin LD3_Pin LD5_Pin LD6_Pin
-                           Audio_RST_Pin */
-  GPIO_InitStruct.Pin = LD4_Pin|LD3_Pin|LD5_Pin|LD6_Pin
-                          |Audio_RST_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : OTG_FS_OverCurrent_Pin */
-  GPIO_InitStruct.Pin = OTG_FS_OverCurrent_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(OTG_FS_OverCurrent_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -490,94 +340,6 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void parse_gps_data(uint8_t *buf, uint16_t len)
-{
-    static char line[128];
-    static uint16_t line_idx = 0;
-
-    for(uint16_t i = 0; i < len; i++)
-    {
-        char c = buf[i];
-
-        if(c == '\r' || c == '\n')
-        {
-            if(line_idx > 0)
-            {
-                line[line_idx] = '\0';
-                process_nmea_sentence(line);
-                line_idx = 0;
-            }
-        }
-        else
-        {
-            if(line_idx < sizeof(line)-1)
-                line[line_idx++] = c;
-        }
-    }
-}
-
-uint8_t nmea_checksum_valid(const char* sentence)
-{
-    if(sentence[0] != '$') return 0;
-
-    const char* p = strchr(sentence, '*');
-    if(!p) return 0;
-
-    uint8_t checksum = 0;
-    for(const char* s = sentence+1; s < p; s++)
-        checksum ^= *s;
-
-    uint8_t sent = (uint8_t) strtol(p+1, NULL, 16);
-    return checksum == sent;
-}
-
-void process_nmea_sentence(const char* line)
-{
-    if(!nmea_checksum_valid(line)) return;
-
-    if(strncmp(line+3, "RMC", 3) == 0)
-    {
-        char status;
-        double lat = 0.0, lon = 0.0;
-        char ns = 0, ew = 0;
-        float time_f = 0.0;
-
-        int items_parsed = sscanf(line, "$%*5s,%f,%c,%lf,%c,%lf,%c",
-               &time_f, &status, &lat, &ns, &lon, &ew);
-
-        if (items_parsed >= 1) {
-            uint32_t time_raw = (uint32_t)time_f;
-            gps_last_position.hour   = time_raw / 10000;
-            gps_last_position.minute = (time_raw / 100) % 100;
-            gps_last_position.second = time_raw % 100;
-        }
-
-
-        if(items_parsed >= 6 && status == 'A')
-        {
-            gps_last_position.latitude = nmea_to_decimal(lat, ns);
-            gps_last_position.longitude = nmea_to_decimal(lon, ew);
-            gps_last_position.ns = ns;
-            gps_last_position.ew = ew;
-            gps_last_position.valid = 1;
-            gps_last_position.timestamp = HAL_GetTick();
-        }
-        else
-        {
-            gps_last_position.valid = 0;
-        }
-    }
-}
-
-double nmea_to_decimal(double nmea, char hemi)
-{
-    int deg = (int)(nmea / 100);
-    double min = nmea - deg*100;
-    double dec = deg + min/60.0;
-
-    if(hemi == 'S' || hemi == 'W') dec = -dec;
-    return dec;
-}
 /* USER CODE END 4 */
 
 /**

@@ -1,0 +1,10 @@
+../Core/Src/ILI9341_STM32_Driver.c:6:6:HAL_SPI_TxCpltCallback	2
+../Core/Src/ILI9341_STM32_Driver.c:14:13:WriteCommand	1
+../Core/Src/ILI9341_STM32_Driver.c:22:13:WriteData	1
+../Core/Src/ILI9341_STM32_Driver.c:30:13:WriteBuffer_DMA	1
+../Core/Src/ILI9341_STM32_Driver.c:37:13:SetAddress	1
+../Core/Src/ILI9341_STM32_Driver.c:54:6:Init	1
+../Core/Src/ILI9341_STM32_Driver.c:77:6:SetRotation	3
+../Core/Src/ILI9341_STM32_Driver.c:95:6:DrawRectangle	8
+../Core/Src/ILI9341_STM32_Driver.c:123:6:FillScreen	1
+../Core/Src/ILI9341_STM32_Driver.c:128:6:DrawPixel	3

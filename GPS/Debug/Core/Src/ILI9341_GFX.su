@@ -1,0 +1,2 @@
+../Core/Src/ILI9341_GFX.c:5:6:DrawChar	64	static
+../Core/Src/ILI9341_GFX.c:35:6:DrawText	40	static

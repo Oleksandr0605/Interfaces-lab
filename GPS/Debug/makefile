@@ -9,10 +9,6 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
--include USB_HOST/Target/subdir.mk
--include USB_HOST/App/subdir.mk
--include Middlewares/ST/STM32_USB_Host_Library/Core/Src/subdir.mk
--include Middlewares/ST/STM32_USB_Host_Library/Class/CDC/Src/subdir.mk
 -include Drivers/STM32F4xx_HAL_Driver/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
@@ -88,8 +84,8 @@ all: main-build
 main-build: GPS.elf secondary-outputs
 
 # Tool invocations
-GPS.elf GPS.map: $(OBJS) $(USER_OBJS) C:\Users\oleksandr.ivaniuk\STM32CubeIDE\new_worspace\GPS\STM32F411VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-g++ -o "GPS.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\oleksandr.ivaniuk\STM32CubeIDE\new_worspace\GPS\STM32F411VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="GPS.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+GPS.elf GPS.map: $(OBJS) $(USER_OBJS) /home/oleksandr/STM32CubeIDE/new_workspace/GPS/STM32F411VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-g++ -o "GPS.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/oleksandr/STM32CubeIDE/new_workspace/GPS/STM32F411VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="GPS.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

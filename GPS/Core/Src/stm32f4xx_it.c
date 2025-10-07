@@ -41,12 +41,12 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-extern volatile buffer_t buffer;
-extern volatile uint8_t nmea_data_ready;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -55,8 +55,7 @@ extern volatile uint8_t nmea_data_ready;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern HCD_HandleTypeDef hhcd_USB_OTG_FS;
-extern UART_HandleTypeDef huart1;
+extern DMA_HandleTypeDef hdma_spi1_tx;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -200,47 +199,17 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles USART1 global interrupt.
+  * @brief This function handles DMA2 stream2 global interrupt.
   */
-void USART1_IRQHandler(void)
+void DMA2_Stream2_IRQHandler(void)
 {
-  /* USER CODE BEGIN USART1_IRQn 0 */
-  if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_RXNE) != RESET)
-  {
-	uint8_t received_byte = (uint8_t)(huart1.Instance->DR);
+  /* USER CODE BEGIN DMA2_Stream2_IRQn 0 */
 
-	uint16_t next_head = (buffer.head + 1) % GPS_BUF_SIZE;
+  /* USER CODE END DMA2_Stream2_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_spi1_tx);
+  /* USER CODE BEGIN DMA2_Stream2_IRQn 1 */
 
-	if (next_head != buffer.tail)
-	{
-	  buffer.buffer[buffer.head] = received_byte;
-	  buffer.head = next_head;
-
-	  if (received_byte == '\n')
-	  {
-		nmea_data_ready = 1;
-	  }
-	}
-  }
-  /* USER CODE END USART1_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
-  /* USER CODE BEGIN USART1_IRQn 1 */
-
-  /* USER CODE END USART1_IRQn 1 */
-}
-
-/**
-  * @brief This function handles USB On The Go FS global interrupt.
-  */
-void OTG_FS_IRQHandler(void)
-{
-  /* USER CODE BEGIN OTG_FS_IRQn 0 */
-
-  /* USER CODE END OTG_FS_IRQn 0 */
-  HAL_HCD_IRQHandler(&hhcd_USB_OTG_FS);
-  /* USER CODE BEGIN OTG_FS_IRQn 1 */
-
-  /* USER CODE END OTG_FS_IRQn 1 */
+  /* USER CODE END DMA2_Stream2_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
