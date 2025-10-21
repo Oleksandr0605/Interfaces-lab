@@ -23,6 +23,8 @@
 /* USER CODE BEGIN Includes */
 #include "ILI9341_STM32_Driver.h"
 #include "ILI9341_GFX.h"
+#include "bme280.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,8 +43,26 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c2;
+
 SPI_HandleTypeDef hspi1;
 DMA_HandleTypeDef hdma_spi1_tx;
+
+float temperature;
+float humidity;
+float pressure;
+
+float last_t;
+float last_h;
+float last_p;
+
+struct bme280_dev dev;
+struct bme280_data comp_data;
+int8_t rslt;
+
+char hum_string[50];
+char temp_string[50];
+char press_string[50];
 
 /* USER CODE BEGIN PV */
 const char* gps_data[] = {
@@ -101,12 +121,38 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+int8_t user_i2c_read(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len)
+{
+  if(HAL_I2C_Master_Transmit(&hi2c2, (id << 1), &reg_addr, 1, 10) != HAL_OK) return -1;
+  if(HAL_I2C_Master_Receive(&hi2c2, (id << 1) | 0x01, data, len, 10) != HAL_OK) return -1;
+
+  return 0;
+}
+
+void user_delay_ms(uint32_t period)
+{
+  HAL_Delay(period);
+}
+
+int8_t user_i2c_write(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len)
+{
+  int8_t *buf;
+  buf = malloc(len +1);
+  buf[0] = reg_addr;
+  memcpy(buf +1, data, len);
+
+  if(HAL_I2C_Master_Transmit(&hi2c2, (id << 1), (uint8_t*)buf, len + 1, HAL_MAX_DELAY) != HAL_OK) return -1;
+
+  free(buf);
+  return 0;
+}
 
 /* USER CODE END 0 */
 
@@ -141,10 +187,29 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SPI1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
   Init();
-
-
+  dev.dev_id = BME280_I2C_ADDR_PRIM;
+  dev.intf = BME280_I2C_INTF;
+  dev.read = user_i2c_read;
+  dev.write = user_i2c_write;
+  dev.delay_ms = user_delay_ms;
+  rslt = bme280_init(&dev);
+  if (rslt != BME280_OK)
+  {
+      Error_Handler();
+  }
+  dev.settings.osr_h = BME280_OVERSAMPLING_1X;
+  dev.settings.osr_p = BME280_OVERSAMPLING_16X;
+  dev.settings.osr_t = BME280_OVERSAMPLING_2X;
+  dev.settings.filter = BME280_FILTER_COEFF_16;
+  uint8_t settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
+  rslt = bme280_set_sensor_settings(settings_sel, &dev);
+  if (rslt != BME280_OK)
+  {
+      Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -167,8 +232,48 @@ int main(void)
    int gps_index = 0;
    char coords_buffer[45];
    char time_buffer[20];
+
   while (1)
   {
+	  rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
+	  dev.delay_ms(40);
+	  rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
+	  if(rslt == BME280_OK)
+		{
+		  temperature = comp_data.temperature / 100.0;
+		  humidity = comp_data.humidity / 1024.0;
+		  pressure = comp_data.pressure / 10000.0;
+
+		  last_t = temperature;
+		  last_h = humidity;
+		  last_p = pressure;
+
+		  /*Display Data */
+		  memset(hum_string, 0, sizeof(hum_string));
+		  memset(temp_string, 0, sizeof(temp_string));
+		  memset(press_string, 0, sizeof(press_string));
+
+		  sprintf(hum_string, "Humidity %03.1f %%       ", humidity);
+		  sprintf(temp_string, "Temperature %03.1f C      ", temperature);
+		  sprintf(press_string, "Pressure %03.1f hPa       ", pressure);
+
+		  DrawText(temp_string, FONT2, 10, 115, RED, WHITE);
+		  DrawText(hum_string, FONT2, 10, 135, RED, WHITE);
+		  DrawText(press_string, FONT2, 10, 155, RED, WHITE);
+		} else {
+		  memset(hum_string, 0, sizeof(hum_string));
+		  memset(temp_string, 0, sizeof(temp_string));
+		  memset(press_string, 0, sizeof(press_string));
+
+		  sprintf(hum_string, "stale Humidity %03.1f %% ", last_h);
+		  sprintf(temp_string, "stale Temperature %03.1f C ", last_t);
+		  sprintf(press_string, "stale Pressure %03.1f hPa ", last_p);
+
+		  DrawText(temp_string, FONT2, 10, 115, RED, WHITE);
+		  DrawText(hum_string, FONT2, 10, 135, RED, WHITE);
+		  DrawText(press_string, FONT2, 10, 155, RED, WHITE);
+		}
+
 	  const char* full_gps_string = gps_data[gps_index];
 	  const char* separator = ", UTC: ";
 	  const char* time_ptr = strstr(full_gps_string, separator);
@@ -242,6 +347,40 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.ClockSpeed = 100000;
+  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C2_Init 2 */
+
+  /* USER CODE END I2C2_Init 2 */
+
+}
+
+/**
   * @brief SPI1 Initialization Function
   * @param None
   * @retval None
@@ -310,8 +449,8 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(green_GPIO_Port, green_Pin, GPIO_PIN_RESET);
